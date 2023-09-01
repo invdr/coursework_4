@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "курсовая работа 4"
+version = "0.1"
+description = "Проект для работы с API hh.ru, superjob.ru"
+authors = ["Ibrahim S <iba_@bk.ru>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "3.11.4"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+flake8 = "^6.1.0"
+pytest-cov = "^4.1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
