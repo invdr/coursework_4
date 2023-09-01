@@ -12,19 +12,20 @@ class APIVacancy(ABC):
     """Абстрактный класс для работы с API сайтов с вакансиями."""
 
     @abstractmethod
-    def get_vacancies(self, *args):
+    def get_vacancies(self, *args) -> None:
         pass
 
     @staticmethod
-    def check_file(json_file):
+    def check_file(json_file) -> None:
         if not os.path.exists(json_file):
             raise FileNotFoundError("JSON файл не найден")
 
 
 class JSONSaver:
     """Класс для сохранения вакансий со всех платформ в JSON формате"""
+
     @staticmethod
-    def add_to_json(json_file, new_vacancies):
+    def add_to_json(json_file, new_vacancies: list) -> None:
         with open(json_file, 'r', encoding='utf-8') as f:
             json_data = json.load(f)
             json_data.extend(new_vacancies)
@@ -38,14 +39,14 @@ class JSONSaver:
 class HeadHunterAPI(APIVacancy, JSONSaver):
     """Класс для работы с API сайта HH.ru"""
 
-    def get_vacancies(self, query, json_file=HHJSONFILE):
+    def get_vacancies(self, query: str, json_file=HHJSONFILE) -> None:
         """По запросу пользователя добавляем найденные вакансии в JSON файл по шаблону."""
         # проверяем наличие необходимо JSON файла-шаблона
         self.check_file(json_file)
 
         # проходим в цикле по страницам результата запроса (100 записей на 1 страницу)
         for page in range(0, 1):
-            new_data = json.loads(self.get_page(query, page))
+            new_data = json.loads(self.__get_page(query, page))
 
             # проверка на 2000 записей при 100 записях на 1 странице
             # если кол-во страниц результата запроса равно значению "page"
@@ -57,13 +58,13 @@ class HeadHunterAPI(APIVacancy, JSONSaver):
             formatted_vacancies = []
             for vacancy in new_data['items']:
                 vacancy_info = {
-                    "id": vacancy["id"],
+                    "id": int(vacancy["id"]),
                     "profession": vacancy["name"],
                     # получаем зп, если есть, если нет - "Не указана"
-                    "salary": self.get_hh_salary(vacancy),
+                    "salary": self.__get_hh_salary(vacancy),
                     "vacancy_url": vacancy["alternate_url"],
                     # получаем требования, если есть, если нет - "Не указаны"
-                    "snippet": self.get_hh_requirements(vacancy),
+                    "snippet": self.__get_hh_requirements(vacancy),
 
                 }
                 formatted_vacancies.append(vacancy_info)
@@ -72,7 +73,8 @@ class HeadHunterAPI(APIVacancy, JSONSaver):
             self.add_to_json(json_file, formatted_vacancies)
 
     @staticmethod
-    def get_page(query, page=0):
+    def __get_page(query: str, page: int) -> str:
+        """Функция получает JSON данные по вакансиям с необходимой страницы для дальнейшей работы."""
         params = {
             'text': f'NAME:{query}',
             'page': page,
@@ -84,8 +86,8 @@ class HeadHunterAPI(APIVacancy, JSONSaver):
         return data
 
     @staticmethod
-    def get_hh_salary(vacancy):
-        """Функция для записи зп в json"""
+    def __get_hh_salary(vacancy: dict) -> str | dict:
+        """Функция для записи зарплаты в JSON по шаблону."""
         if vacancy["salary"]:
             salary_from = vacancy["salary"]["from"]
             salary_to = vacancy["salary"]["to"]
@@ -100,8 +102,8 @@ class HeadHunterAPI(APIVacancy, JSONSaver):
         return salary
 
     @staticmethod
-    def get_hh_requirements(vacancy):
-        """Функция для записи требований в json"""
+    def __get_hh_requirements(vacancy: dict) -> str:
+        """Функция для записи требований в JSON по шаблону."""
         if vacancy["snippet"]["requirement"]:
             return f'{vacancy["snippet"]["requirement"]}'
         return 'Не указаны'
@@ -112,14 +114,15 @@ class SuperJobAPI(APIVacancy, JSONSaver):
     __secret_key = ('v3.h.4094091.ae6fa90f20bc0d67b04ec1edf5dd02e4ab9c64c5'
                     '.d238f3c7e7e5fe32997d9b4d0a15ff6a4d699b75')
 
-    def get_vacancies(self, query, json_file=SJJSONFILE):
-
+    def get_vacancies(self, query: str, json_file=SJJSONFILE) -> None:
+        """По запросу пользователя добавляем найденные вакансии в JSON файл по шаблону."""
+        # проверяем наличие необходимо JSON файла-шаблона
         self.check_file(json_file)
 
         # проходим в цикле по страницам результата запроса (100 записей на 1
         # страницу)
         for page in range(0, 1):
-            new_data = json.loads(self.get_page(query, page))
+            new_data = json.loads(self.__get_page(query, page))
 
             # список для форматированных вакансий
             formatted_vacancies = []
@@ -142,7 +145,8 @@ class SuperJobAPI(APIVacancy, JSONSaver):
             self.add_to_json(json_file, formatted_vacancies)
 
     @staticmethod
-    def get_page(query, page=0):
+    def __get_page(query: str, page: int) -> str:
+        """Функция получает JSON данные по вакансиям с необходимой страницы для дальнейшей работы."""
         headers = {'Host': 'api.superjob.ru',
                    'X-Api-App-Id': SuperJobAPI.__secret_key, }
         params = {'keyword': query,
@@ -160,7 +164,7 @@ class Vacancy:
     Класс для работы с вакансиями
     """
 
-    def __init__(self, id, name, url, salary, description, something):
+    def __init__(self, id, name, url, salary, description):
         self.__check_values(name, url, salary, description)
         self.id = id
         self.name = name
@@ -174,21 +178,21 @@ class Vacancy:
             raise 'Название вакансии должно быть строковым значением'
 
     def __gt__(self, other):
-        """Сравнивает экземпляры класса по атрибуту subscriber_count."""
-        return int(self.subscriber_count) > int(other.subscriber_count)
+        """Сравнивает экземпляры класса по атрибуту salary"""
+        return int(self.salary) > int(other.salary)
 
     def __ge__(self, other):
         """Сравнивает экземпляры класса по атрибуту subscriber_count."""
-        return int(self.subscriber_count) >= int(other.subscriber_count)
+        return int(self.salary) >= int(other.salary)
 
     def __lt__(self, other):
         """Сравнивает экземпляры класса по атрибуту subscriber_count."""
-        return int(self.subscriber_count) < int(other.subscriber_count)
+        return int(self.salary) < int(other.salary)
 
     def __le__(self, other):
         """Сравнивает экземпляры класса по атрибуту subscriber_count."""
-        return int(self.subscriber_count) <= int(other.subscriber_count)
+        return int(self.salary) <= int(other.salary)
 
     def __eq__(self, other):
         """Сравнивает экземпляры класса по атрибуту subscriber_count."""
-        return int(self.subscriber_count) == int(other.subscriber_count)
+        return int(self.salary) == int(other.salary)
