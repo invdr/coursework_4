@@ -1,4 +1,5 @@
 from config.classes import *
+from config.functions import *
 
 
 def main():
@@ -15,11 +16,15 @@ def main():
     #     sj_api_obj.get_vacancies(user_query)
     #     working_file = SJJSONFILE
     # else:
-    #     print("Необходимо ввести цифру (номер платформы)")
+    # #     print("Необходимо ввести цифру (номер платформы)")
+    # sj_api_obj.get_vacancies('python')
+    # hh_api_obj.get_vacancies('python')
+    #
+    # vacancy = Vacancy(12222222, "Вакансия через код", "1000 9000 руб", "https://pythonworld.ru",
+    #                   "Самаяч тоапва яс варцнук фывл рофцуфрыовы вфт")
 
-    sj_api_obj.get_vacancies('python')
-    hh_api_obj.get_vacancies('python')
-
+    vacancy = input_vacancy_info()
+    vacancy.add_user_vacancy_to_json(HHJSONFILE)
 
 if __name__ == '__main__':
     main()
