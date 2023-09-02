@@ -36,8 +36,101 @@ class JSONSaver:
                 json.dump(json_data, outfile, ensure_ascii=False, indent=2)
 
 
+class Vacancy(JSONSaver):
+    """
+    Класс для работы с вакансиями
+    """
+
+    def __init__(self, vacancy_id, profession, salary, url, requirements):
+
+        if self.__check_values(vacancy_id, profession, salary, url, requirements):
+            self.vacancy_id = vacancy_id
+            self.profession = profession
+            self.salary = salary
+            self.vacancy_url = url
+            self.requirements = requirements
+
+    @classmethod
+    def __check_values(cls, vacancy_id: int, profession: str, salary: str, url: str, requirements: str) -> True:
+
+        if not isinstance(vacancy_id, int):
+            raise TypeError("ID Вакансии должен состоять из цифр")
+        if not len(str(vacancy_id)) == 8:
+            raise ValueError("Длина ID вакансии должно быть равным 8 (восьми)")
+        if not len(profession) >= 10:
+            raise TypeError("Наименование вакансии должно состоять из минимум 10 символов.")
+        if salary.count(' ') != 2:
+            raise "Зарплата должна быть разделена 2 (тремя) пробелами"
+        if not url.startswith("https://"):
+            raise "Ссылка должна начинаться с https://"
+        if not url.endswith(".ru"):
+            raise "Ссылка должна заканчиваться на .ru"
+        if not len(requirements) >= 20:
+            raise TypeError("Требования должно состоять минимум из 20 символов")
+
+        return True
+
+    @staticmethod
+    def __get_user_salary(salary: str) -> dict:
+        """Получает зарплата в виде "от-до"."""
+        salary_list = salary.split()
+        salary_dict = {
+            "from": salary_list[0],
+            "to": salary_list[1],
+            "currency": salary_list[2],
+        }
+        return salary_dict
+
+    def add_user_vacancy_to_json(self, json_file):
+        vacancy = [{
+            "id": self.vacancy_id,
+            "profession": self.profession,
+            "salary": self.__get_user_salary(self.salary),
+            "vacancy_url": self.vacancy_url,
+            "requirements": self.requirements,
+        }]
+        # используем метод класса JSONSaver для сохранения вакансии в рабочий JSON файл
+        self.add_to_json(json_file, vacancy)
+
+    @staticmethod
+    def delete_vacancy(json_file, id_vacancy=None) -> None:
+        with open(json_file, 'r', encoding='utf-8') as f:
+            vacancies_list = json.load(f)
+            if isinstance(id_vacancy, int):
+                for index, vacancy in enumerate(vacancies_list):
+                    if vacancy["id"] == id_vacancy:
+                        vacancies_list.pop(index)
+                        break
+                else:
+                    print("Такого индекса нет")
+            else:
+                vacancies_list.pop(-1)
+            with open(json_file, 'w', encoding='utf-8') as outfile:
+                json.dump(vacancies_list, outfile, ensure_ascii=False, indent=2)
+
+    def __gt__(self, other):
+        """Сравнивает экземпляры класса по атрибуту salary"""
+        return int(self.salary) > int(other.salary)
+
+    def __ge__(self, other):
+        """Сравнивает экземпляры класса по атрибуту subscriber_count."""
+        return int(self.salary) >= int(other.salary)
+
+    def __lt__(self, other):
+        """Сравнивает экземпляры класса по атрибуту subscriber_count."""
+        return int(self.salary) < int(other.salary)
+
+    def __le__(self, other):
+        """Сравнивает экземпляры класса по атрибуту subscriber_count."""
+        return int(self.salary) <= int(other.salary)
+
+    def __eq__(self, other):
+        """Сравнивает экземпляры класса по атрибуту subscriber_count."""
+        return int(self.salary) == int(other.salary)
+
+
 class HeadHunterAPI(APIVacancy, JSONSaver):
-    """Класс для работы с API сайта HH.ru"""
+    """Класс для работы с вакансиями сайта HH.ru посредством API."""
 
     def get_vacancies(self, query: str, json_file=HHJSONFILE) -> None:
         """По запросу пользователя добавляем найденные вакансии в JSON файл по шаблону."""
@@ -64,7 +157,7 @@ class HeadHunterAPI(APIVacancy, JSONSaver):
                     "salary": self.__get_hh_salary(vacancy),
                     "vacancy_url": vacancy["alternate_url"],
                     # получаем требования, если есть, если нет - "Не указаны"
-                    "snippet": self.__get_hh_requirements(vacancy),
+                    "requirements": self.__get_hh_requirements(vacancy),
 
                 }
                 formatted_vacancies.append(vacancy_info)
@@ -110,7 +203,7 @@ class HeadHunterAPI(APIVacancy, JSONSaver):
 
 
 class SuperJobAPI(APIVacancy, JSONSaver):
-    """Класс для работы с API сайта superjob.ru"""
+    """Класс для работы с вакансиями сайта superjob.ru посредством API."""
     __secret_key = ('v3.h.4094091.ae6fa90f20bc0d67b04ec1edf5dd02e4ab9c64c5'
                     '.d238f3c7e7e5fe32997d9b4d0a15ff6a4d699b75')
 
@@ -136,7 +229,7 @@ class SuperJobAPI(APIVacancy, JSONSaver):
                         "currency": vacancy["currency"].upper(),
                     },
                     "vacancy_url": vacancy["link"],
-                    "snippet": vacancy["candidat"],
+                    "requirements": vacancy["candidat"],
                 }
                 formatted_vacancies.append(vacancy_info)
 
@@ -157,42 +250,3 @@ class SuperJobAPI(APIVacancy, JSONSaver):
                            headers=headers, params=params)
         data = req.content.decode()  # декодируем
         return data
-
-
-class Vacancy:
-    """
-    Класс для работы с вакансиями
-    """
-
-    def __init__(self, id, name, url, salary, description):
-        self.__check_values(name, url, salary, description)
-        self.id = id
-        self.name = name
-        self.url = url
-        self.salary = salary
-        self.description = description
-
-    @classmethod
-    def __check_values(cls, name, url, salary, description):
-        if not isinstance(name, str):
-            raise 'Название вакансии должно быть строковым значением'
-
-    def __gt__(self, other):
-        """Сравнивает экземпляры класса по атрибуту salary"""
-        return int(self.salary) > int(other.salary)
-
-    def __ge__(self, other):
-        """Сравнивает экземпляры класса по атрибуту subscriber_count."""
-        return int(self.salary) >= int(other.salary)
-
-    def __lt__(self, other):
-        """Сравнивает экземпляры класса по атрибуту subscriber_count."""
-        return int(self.salary) < int(other.salary)
-
-    def __le__(self, other):
-        """Сравнивает экземпляры класса по атрибуту subscriber_count."""
-        return int(self.salary) <= int(other.salary)
-
-    def __eq__(self, other):
-        """Сравнивает экземпляры класса по атрибуту subscriber_count."""
-        return int(self.salary) == int(other.salary)
