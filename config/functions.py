@@ -1,16 +1,116 @@
 import json
 
-from config.classes import Vacancy
+from config.classes import *
 
 
-def delete_vacancy_in_json(json_file) -> None:
-    """Функция для удаления вакансии по его ID."""
+def get_user_move():
+    print("Доступные действия: ")
+    print("1. Показать все собранные вакансии\n"
+          "2. Показать вакансию по ID\n"
+          "3. Показать топ N вакансий\n"
+          "4. Удалить вакансию из собранных по его ID\n"
+          "5. Добавить вакансию в список")
+    if Vacancy.all_added_vacancies:
+        print("6. Показать добавленную вакансию\n"
+              "7. Удалить добавленную вакансию")
+    if len(Vacancy.all_added_vacancies) > 1:
+        print("8. Показать все добавленные вакансии\n")
+    print("0. Выход")
+    user_move = input("Выберите действие: ")
+    return user_move
+
+
+def get_platform():
+    platforms = (HeadHunterAPI(), SuperJobAPI())
+    print("Выберите платформу сбора вакансий: ")
+    print("1. HeadHunter\n2. SuperJob\n")
+
+    validated_platform = None
+    validate = False
+    while not validate:
+        input_platform = input("Введите номер платформы: ")
+        if not input_platform.isdigit():
+            print("Введите число 1 для HH или 2 для SuperJob цифрами")
+        elif not int(input_platform) in (1, 2):
+            print("Введите число 1 для HH или 2 для SuperJob")
+        else:
+            validated_platform = int(input_platform)
+            validate = True
+    # создаем объект для работы с API
+    if validated_platform == 1:
+        return platforms[0]
+    return platforms[1]
+
+
+def show_vacancies(json_file, top_n=0) -> None:
+    """
+    Печатает вакансии из файла
+    :param json_file: JSON файл c вакансиями
+    :param top_n: необходимое кол-во вакансий для печати
+    :return: None
+    """
+    with open(json_file, 'r', encoding='utf-8') as f:
+        vacancies = json.load(f)
+        if top_n > 0:
+            top_n_vacancies = []
+            count = 0
+            for vacancy in vacancies:
+                if count == top_n:
+                    break
+                top_n_vacancies.append(vacancy)
+                count += 1
+
+            print_vacancies(top_n_vacancies)
+
+        else:
+            print_vacancies(vacancies)
+
+
+def get_salary(vacancy):
+    """
+    Функция для вывода на печать зарплаты при показе вакансий
+    :param vacancy: вакансия в dict формате
+    :return: зарпалата на печать
+    """
+    salary = vacancy["salary"]
+    if salary != "Не указана":
+        return (f'\tОт: {salary["from"]}\n'
+                f'\tДо: {salary["to"]}\n'
+                f'\tВалюта: {salary["currency"].upper()}')
+    return f'\t{salary}'
+
+
+def print_vacancies(vacancies):
+    """
+    Печать вакансий из необходимого списка с вакансиями
+    :param vacancies: вакансии из списка
+    :return: печать
+    """
+    for vacancy in vacancies:
+        salary = get_salary(vacancy)
+        vacancy_info = ('------------------\n'
+                        f'ID вакансии: {vacancy["id"]}\n'
+                        f'Наименование вакансии: {vacancy["profession"]}\n'
+                        f'Зарплата: \n{salary}'
+                        f'\nСсылка: {vacancy["vacancy_url"]}\n'
+                        f'Описание: {vacancy["description"]}\n')
+
+        print(vacancy_info)
+
+
+def delete_vacancy_by_id(json_file) -> None:
+    """
+    Функция для удаления вакансии по его ID.
+
+    :param json_file: JSON файл с вакансиями
+    :return: JSON файл с удаленной вакансией
+    """
     with open(json_file, 'r', encoding='utf-8') as f:
         vacancies_list = json.load(f)
         validate_id = False
 
         while not validate_id:
-            id_vacancy = check_id()
+            id_vacancy = check_id()  # получаем ID вакансии
             for index, vacancy in enumerate(vacancies_list):
                 if vacancy["id"] == id_vacancy:
                     vacancies_list.pop(index)
@@ -23,7 +123,7 @@ def delete_vacancy_in_json(json_file) -> None:
             json.dump(vacancies_list, outfile, ensure_ascii=False, indent=2)
 
 
-def input_vacancy_info() -> Vacancy:
+def add_vacancy() -> Vacancy:
     """Принимает от пользователя данные и создает объект (вакансию) класса Vacancy."""
     vacancy_id = check_id()
     profession = check_profession()
@@ -32,6 +132,28 @@ def input_vacancy_info() -> Vacancy:
     description = check_description()
 
     return Vacancy(vacancy_id, profession, salary, vacancy_url, description)
+
+
+def sort_by_salary():
+    pass
+
+# функции валидации входных данных от пользователя
+def check_top_n():
+    """Функция для валидации введенной цифры."""
+    validated_top_n = ''
+
+    validate = False
+    while not validate:
+        input_top_n = input("Введите топ N вакансий (число больше нуля): ")
+        if not input_top_n.isdigit():
+            print("Введите число больше нуля, а не кто его знает что...")
+        elif int(input_top_n) <= 0:
+            print("Введите число больше нуля... просил же")
+        else:
+            validated_top_n = int(input_top_n)
+            validate = True
+
+    return validated_top_n
 
 
 def check_id() -> int:
