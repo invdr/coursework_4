@@ -20,11 +20,13 @@ def main():
     # sj_api_obj.get_vacancies('python')
     # hh_api_obj.get_vacancies('python')
     #
-    # vacancy = Vacancy(12222222, "Вакансия через код", "1000 9000 руб", "https://pythonworld.ru",
-    #                   "Самаяч тоапва яс варцнук фывл рофцуфрыовы вфт")
+    vacancy = Vacancy(12222222, "Вакансия через код", "1000 9000 руб", "https://pythonworld.ru",
+                      "Самаяч тоапва яс варцнук фывл рофцуфрыовы вфт")
+    # vacancy.add_user_vacancy_to_json(HHJSONFILE)
+    # vacancy.delete_vacancy(HHJSONFILE)
+    # delete_vacancy_in_json(HHJSONFILE)
 
-    vacancy = input_vacancy_info()
-    vacancy.add_user_vacancy_to_json(HHJSONFILE)
+
 
 if __name__ == '__main__':
     main()

@@ -1,8 +1,30 @@
+import json
+
 from config.classes import Vacancy
 
 
+def delete_vacancy_in_json(json_file) -> None:
+    """Функция для удаления вакансии по его ID."""
+    with open(json_file, 'r', encoding='utf-8') as f:
+        vacancies_list = json.load(f)
+        validate_id = False
+
+        while not validate_id:
+            id_vacancy = check_id()
+            for index, vacancy in enumerate(vacancies_list):
+                if vacancy["id"] == id_vacancy:
+                    vacancies_list.pop(index)
+                    validate_id = True
+                    break
+            else:
+                print("Такого индекса нет в вакансиях")
+
+        with open(json_file, 'w', encoding='utf-8') as outfile:
+            json.dump(vacancies_list, outfile, ensure_ascii=False, indent=2)
+
+
 def input_vacancy_info() -> Vacancy:
-    """Принимает от пользователя данные и создает объект(вакансию) класса Vacancy"""
+    """Принимает от пользователя данные и создает объект (вакансию) класса Vacancy."""
     vacancy_id = check_id()
     profession = check_profession()
     salary = check_salary()
@@ -20,7 +42,7 @@ def check_id() -> int:
     while not validate:
         input_vacancy_id = input("Введите ID вакансии: ")
         if not input_vacancy_id.isdigit():
-            print("ID Вакансии должен состоять из цифр")
+            print("ID вакансии должен состоять из цифр")
         elif len(input_vacancy_id) != 8:
             print("Длина ID вакансии должно быть равным 8 (восьми)")
         else:
