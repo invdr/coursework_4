@@ -1,52 +1,69 @@
-import json
-
 from config.classes import *
 
 
-def get_user_move(json_file):
-    print("\nДоступные действия:\n"
-          "1. Показать все собранные вакансии\n"  # show_vacancies(json_file, top_n=0)
-          "2. Показать вакансию по ID\n"  # не реализовано
-          "3. Показать топ N вакансий\n"  # show_vacancies(json_file, top_n=0)
-          "4. Удалить вакансию из собранных по его ID\n"  # delete_vacancy_by_id(json_file)
-          "5. Добавить вакансию в список")  # Vacancy.
-    if Vacancy.all_added_vacancies:
-        print("6. Показать добавленную вакансию\n"  # print(vacancy)
-              "7. Удалить добавленную вакансию")  # delete_vacancy(self, json_file)
-    if len(Vacancy.all_added_vacancies) > 1:
-        print("8. Показать все добавленные вакансии\n")
-    print("0. Выход")
-    user_move = int(input("Выберите действие: "))
-    while user_move != 0:
+def user_interaction(json_file) -> None:
+    """Пользовательский интерфейс."""
+    added_vacancies = Vacancy.all_added_vacancies
+    print("------------------\n"
+          "Доступные действия:\n"
+          "1. Показать все собранные вакансии\n"
+          "2. Показать вакансию по ID\n"
+          "3. Показать топ N вакансий\n"
+          "4. Сортировать по наличию зарплаты в вакансии\n"
+          "5. Удалить вакансию из собранных по его ID\n"
+          "6. Добавить вакансию в список")  # Vacancy.
+    if added_vacancies:
+        print("7. - показать все добавленные вакансии\n"
+              "8. - удалить последнюю добавленную вакансию")
+    print("0. Выход\n")
+    user_move = check_choice()  # проверка выбранного действия
+    while True:
         if user_move == 1:
             show_vacancies(json_file)
-            get_user_move(json_file)
+            user_interaction(json_file)
         elif user_move == 2:
-            pass
+            show_vacancy_by_id(json_file)
+            user_interaction(json_file)
         elif user_move == 3:
             top_n = get_top_n()
             show_vacancies(json_file, top_n)
-            get_user_move(json_file)
+            user_interaction(json_file)
         elif user_move == 4:
-            delete_vacancy_by_id(json_file)
-            get_user_move(json_file)
+            vacancies = sort_by_salary(json_file)
+            if vacancies:
+                print_vacancies(vacancies)
+            else:
+                print("Нет вакансий с указанной зарплатой.")
+            user_interaction(json_file)
         elif user_move == 5:
+            delete_vacancy_by_id(json_file)
+            user_interaction(json_file)
+        elif user_move == 6:
             vacancy = add_vacancy()
             vacancy.add_user_vacancy_to_json(json_file)
-            get_user_move(json_file)
-        # elif user_move == 6:
-        #     last_added_vac = Vacancy.all_added_vacancies[-1]
-        #     print(last_added_vac)
-        # elif user_move == 7:
-        #     last_added_vac = Vacancy.all_added_vacancies[-1]
-        #     Vacancy.delete_vacancy(last_added_vac, json_file)
+            user_interaction(json_file)
+        elif user_move == 7:
+            if len(added_vacancies) >= 1:
+                Vacancy.show_vacancies()
+                user_interaction(json_file)
+            else:
+                user_interaction(json_file)
+        elif user_move == 8:
+            if len(added_vacancies) >= 1:
+                last_vac = added_vacancies[-1]
+                last_vac.delete_vacancy(json_file)
+                user_interaction(json_file)
+            else:
+                user_interaction(json_file)
+        elif user_move == 0:
+            quit()
         else:
             print("Не то число")
-            get_user_move(json_file)
-    # return user_move
+            user_interaction(json_file)
 
 
-def get_platform():
+def get_platform() -> HeadHunterAPI | SuperJobAPI:
+    """Выбор платформы поиска вакансий."""
     platforms = (HeadHunterAPI(), SuperJobAPI())
     print("Выберите платформу сбора вакансий: ")
     print("1. HeadHunter\n2. SuperJob\n")
@@ -66,10 +83,6 @@ def get_platform():
     if validated_platform == 1:
         return platforms[0]
     return platforms[1]
-
-
-def get_working_file(platform) -> str:
-    return platform.get_working_file
 
 
 def show_vacancies(json_file, top_n=0) -> None:
@@ -96,7 +109,7 @@ def show_vacancies(json_file, top_n=0) -> None:
             print_vacancies(vacancies)
 
 
-def print_vacancies(vacancies):
+def print_vacancies(vacancies: list) -> None:
     """
     Печать вакансий из необходимого списка с вакансиями
     :param vacancies: вакансии из списка
@@ -114,7 +127,7 @@ def print_vacancies(vacancies):
         print(vacancy_info)
 
 
-def get_salary(vacancy):
+def get_salary(vacancy: dict) -> str:
     """
     Функция для вывода на печать зарплаты при показе вакансий
     :param vacancy: вакансия в dict формате
@@ -126,6 +139,34 @@ def get_salary(vacancy):
                 f'\tДо: {salary["to"]}\n'
                 f'\tВалюта: {salary["currency"].upper()}')
     return f'\t{salary}'
+
+
+def show_vacancy_by_id(json_file) -> None:
+    """
+    Функция для показа вакансии по его ID.
+
+    :param json_file: JSON файл с вакансиями
+    :return: принт вакансии
+    """
+    with open(json_file, 'r', encoding='utf-8') as f:
+        vacancies_list = json.load(f)
+        validate_id = False
+
+        while not validate_id:
+            id_vacancy = check_id()  # получаем ID вакансии
+            for index, vacancy in enumerate(vacancies_list):
+                if vacancy["id"] == id_vacancy:
+                    salary = get_salary(vacancy)
+                    print('------------------\n'
+                          f'ID вакансии: {vacancy["id"]}\n'
+                          f'Наименование вакансии: {vacancy["profession"]}\n'
+                          f'Зарплата: \n{salary}'
+                          f'\nСсылка: {vacancy["vacancy_url"]}\n'
+                          f'Описание: {vacancy["description"]}\n')
+                    validate_id = True
+                    break
+            else:
+                print("Такого индекса нет в вакансиях")
 
 
 def delete_vacancy_by_id(json_file) -> None:
@@ -153,6 +194,14 @@ def delete_vacancy_by_id(json_file) -> None:
             json.dump(vacancies_list, outfile, ensure_ascii=False, indent=2)
 
 
+def sort_by_salary(json_file) -> list:
+    """Возвращает отсортированный список вакансий с указанной зарплатой"""
+    with open(json_file, 'r', encoding='utf-8') as f:
+        vacancies = json.load(f)
+        sorted_vacancies = [salary for salary in vacancies if salary["salary"] != "Не указана"]
+        return sorted_vacancies
+
+
 def add_vacancy() -> Vacancy:
     """Принимает от пользователя данные и создает объект (вакансию) класса Vacancy."""
     vacancy_id = check_id()
@@ -164,13 +213,24 @@ def add_vacancy() -> Vacancy:
     return Vacancy(vacancy_id, profession, salary, vacancy_url, description)
 
 
-def sort_by_salary():
-    pass
-
-
 # функции валидации входных данных от пользователя
-def get_top_n():
+def check_choice() -> int:
     """Функция для валидации введенной цифры."""
+    validated_num = None
+    validate = False
+    while not validate:
+        input_num = input("Выберите действие: ")
+        if not input_num.isdigit():
+            print("Введите число, а не кто его знает что...")
+        else:
+            validated_num = int(input_num)
+            validate = True
+
+    return validated_num
+
+
+def get_top_n() -> int:
+    """Функция для валидации введенной цифры при поиске топ N вакансий."""
     validated_top_n = ''
 
     validate = False

@@ -13,14 +13,9 @@ class APIVacancy(ABC):
     def get_vacancies(self, *args) -> None:
         pass
 
-    @staticmethod
-    def check_file(json_file) -> None:
-        if not os.path.exists(json_file):
-            raise FileNotFoundError("JSON файл не найден")
-
 
 class Saver(ABC):
-    """Абстрактный класс для сохранения вакансий в файл"""
+    """Абстрактный класс для сохранения вакансий в файл."""
 
     @staticmethod
     @abstractmethod
@@ -31,19 +26,30 @@ class Saver(ABC):
     def print_result(json_data):
         """Возвращает результат сбора вакансий."""
         if json_data:
-            print_pos_result = (f'-------------------------\n'
-                                f'Вакансии сохранены в файл\n'
-                                f'-------------------------')
+            print_pos_result = '\n---------- Сохранено в файл ----------\n'
             return print_pos_result
-        print_neg_result = (f'-------------------------\n'
-                            f'Вакансии с таким запросом не найдены\n'
-                            f'-------------------------')
+        print_neg_result = '---------- Вакансии с таким запросом не найдены ----------\n'
         return print_neg_result
+
+    @staticmethod
+    def check_file(json_file) -> None:
+        if not os.path.exists(json_file):
+            raise FileNotFoundError("JSON файл с вакансиями не найден")
 
 
 class JSONSaver(Saver):
-    """Класс для сохранения вакансий в JSON формате"""
+    """Класс для сохранения вакансий в JSON формате."""
     __slots__ = ()
+    working_file = 'config/vacancies.json'
+
+    def __init__(self):
+        # проверяем наличие необходимо JSON файла-шаблона
+        if self.check_file(JSONSaver.working_file):
+            self.__working_file = self.working_file
+
+    @property
+    def get_working_file(self):
+        return self.working_file
 
     @staticmethod
     def add_vacancies(json_file, new_vacancies: list) -> None:
@@ -60,13 +66,12 @@ class JSONSaver(Saver):
 
 
 class Vacancy(JSONSaver):
-    """
-    Класс для работы с вакансиями
-    """
+    """Класс для работы с вакансиями."""
     __slots__ = ('vacancy_id', 'profession', 'salary', 'vacancy_url', 'description')
     all_added_vacancies = []
 
     def __init__(self, vacancy_id, profession, salary, vacancy_url, description):
+        super().__init__()
         if self.__check_values(vacancy_id, profession, salary, vacancy_url, description):
             self.vacancy_id = vacancy_id
             self.profession = profession
@@ -127,34 +132,31 @@ class Vacancy(JSONSaver):
                     }]
         # используем метод класса JSONSaver для сохранения вакансии в рабочий JSON файл
         self.add_vacancies(json_file, vacancy)
-        print("Вакансия сохранены в файл")
 
     def delete_vacancy(self, json_file) -> None:
-        """Метод для удаления вакансии из JSON файла."""
-        # если добавить свойство @staticmethod данному методу, то можно использовать код ниже
-        # т.к. добавляемая вакансия юзером всегда добавляется в конец списка
-        # with open(json_file, 'r', encoding='utf-8') as f:
-        #     vacancies_list = json.load(f)
-        #     vacancies_list.pop(-1)
-        #     with open(json_file, 'w', encoding='utf-8') as outfile:
-        #         json.dump(vacancies_list, outfile, ensure_ascii=False, indent=2)
-
-        # для удаления добавленной вакансии через метод объекта
+        """Метод для удаления вакансии из JSON файла и списка экземпляров."""
         with open(json_file, 'r', encoding='utf-8') as f:
             vacancies_list = json.load(f)
-            id_vacancy = self.vacancy_id
-            for index, vacancy in enumerate(vacancies_list):
-                if vacancy["id"] == id_vacancy:
-                    vacancies_list.pop(index)
-                    break
+            vacancies_list.pop()
             with open(json_file, 'w', encoding='utf-8') as outfile:
-                json.dump(vacancies_list, outfile, ensure_ascii=False,indent=2)
+                json.dump(vacancies_list, outfile, ensure_ascii=False, indent=2)
+        self.all_added_vacancies.pop()  # удаляем из списка экземпляров
+        print("---------- Вакансия и экземпляр удалены ----------\n")
 
     @classmethod
     def show_vacancies(cls):
         """Показывает все добавленные вакансии."""
         for vac in cls.all_added_vacancies:
-            print(vac)
+            vacancy_info = ('------------------\n'
+                            f'ID вакансии: {vac.vacancy_id}\n'
+                            f'Наименование вакансии: {vac.profession}\n'
+                            f'Зарплата: \n'
+                            f'\tОт: {vac.salary["from"]}\n'
+                            f'\tДо: {vac.salary["to"]}\n'
+                            f'\tВалюта: {vac.salary["currency"]}\n'
+                            f'Ссылка: {vac.vacancy_url}\n'
+                            f'Описание: {vac.description}')
+            print(vacancy_info)
 
     # def __gt__(self, other):
     #     """Сравнивает экземпляры класса по атрибуту salary"""
@@ -177,7 +179,6 @@ class Vacancy(JSONSaver):
     #     return int(self.salary) == int(other.salary)
 
     def __str__(self):
-        """Для принта добавленной вакансии"""
         salary = self.__get_user_salary(self.salary)
         vacancy_info = ('------------------\n'
                         f'ID вакансии: {self.vacancy_id}\n'
@@ -197,20 +198,12 @@ class Vacancy(JSONSaver):
 
 class HeadHunterAPI(APIVacancy, JSONSaver):
     """Класс для работы с вакансиями сайта HH.ru посредством API."""
-    __slots__ = '__hh_file'
-
-    def __init__(self):
-        self.__hh_file = 'config/hh_vacancies.json'
-
-    @property
-    def get_working_file(self):
-        return self.__hh_file
+    __slots__ = ()
 
     def get_vacancies(self, query: str) -> None:
         """По запросу пользователя добавляем найденные вакансии в JSON файл по шаблону."""
-        # проверяем наличие необходимо JSON файла-шаблона
-        working_file = self.__hh_file
-        self.check_file(working_file)
+        # ссылка на файл для работы
+        working_file = self.get_working_file
 
         # проходим в цикле по страницам результата запроса (100 записей на 1 страницу)
         for page in range(0, 1):
@@ -259,7 +252,11 @@ class HeadHunterAPI(APIVacancy, JSONSaver):
         if vacancy["salary"]:
             salary_from = vacancy["salary"]["from"]
             salary_to = vacancy["salary"]["to"]
-            currency = vacancy["salary"]["currency"]
+            if vacancy["salary"]["currency"] == "RUR":
+                currency = "RUB"
+            else:
+                currency = vacancy["salary"]["currency"]
+
         else:
             return 'Не указана'
 
@@ -279,22 +276,14 @@ class HeadHunterAPI(APIVacancy, JSONSaver):
 
 class SuperJobAPI(APIVacancy, JSONSaver):
     """Класс для работы с вакансиями сайта superjob.ru посредством API."""
-    __slots__ = '__sj_file'
-    __secret_key = ('v3.h.4094091.ae6fa90f20bc0d67b04ec1edf5dd02e4ab9c64c5'
-                    '.d238f3c7e7e5fe32997d9b4d0a15ff6a4d699b75')
+    __slots__ = ()
 
-    def __init__(self):
-        self.__sj_file = 'config/sj_vacancies.json'
-
-    @property
-    def get_working_file(self):
-        return self.__sj_file
+    secret_key = os.getenv('sj_key')
 
     def get_vacancies(self, query: str) -> None:
         """По запросу пользователя добавляем найденные вакансии в JSON файл по шаблону."""
-        # проверяем наличие необходимо JSON файла-шаблона
-        working_file = self.__sj_file
-        self.check_file(working_file)
+        # ссылка на файл для работы
+        working_file = self.get_working_file
 
         # проходим в цикле по страницам результата запроса (100 записей на 1
         # страницу)
@@ -307,11 +296,8 @@ class SuperJobAPI(APIVacancy, JSONSaver):
                 vacancy_info = {
                     "id": vacancy["id"],
                     "profession": vacancy["profession"],
-                    "salary": {
-                        "from": vacancy["payment_from"],
-                        "to": vacancy["payment_to"],
-                        "currency": vacancy["currency"].upper(),
-                    },
+
+                    "salary": self.__get_sj_salary(vacancy),
                     "vacancy_url": vacancy["link"],
                     "description": vacancy["candidat"],
                 }
@@ -325,7 +311,7 @@ class SuperJobAPI(APIVacancy, JSONSaver):
     def __get_page(query: str, page: int) -> str:
         """Функция получает JSON данные по вакансиям с необходимой страницы для дальнейшей работы."""
         headers = {'Host': 'api.superjob.ru',
-                   'X-Api-App-Id': SuperJobAPI.__secret_key, }
+                   'X-Api-App-Id': SuperJobAPI.secret_key, }
         params = {'keyword': query,
                   'page': page,
                   'count': 10}
@@ -334,3 +320,19 @@ class SuperJobAPI(APIVacancy, JSONSaver):
                            headers=headers, params=params)
         data = req.content.decode()  # декодируем
         return data
+
+    @staticmethod
+    def __get_sj_salary(vacancy: dict) -> str | dict:
+        """Метод для записи зарплаты в JSON по шаблону."""
+        salary_from = vacancy["payment_from"]
+        salary_to = vacancy["payment_to"]
+        currency = vacancy["currency"].upper()
+
+        if salary_from == 0 and salary_to == 0:
+            return 'Не указана'
+
+        salary = {"from": salary_from,
+                  "to": salary_to,
+                  "currency": currency, }
+
+        return salary
