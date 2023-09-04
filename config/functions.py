@@ -3,21 +3,47 @@ import json
 from config.classes import *
 
 
-def get_user_move():
-    print("Доступные действия: ")
-    print("1. Показать все собранные вакансии\n"
-          "2. Показать вакансию по ID\n"
-          "3. Показать топ N вакансий\n"
-          "4. Удалить вакансию из собранных по его ID\n"
-          "5. Добавить вакансию в список")
+def get_user_move(json_file):
+    print("\nДоступные действия:\n"
+          "1. Показать все собранные вакансии\n"  # show_vacancies(json_file, top_n=0)
+          "2. Показать вакансию по ID\n"  # не реализовано
+          "3. Показать топ N вакансий\n"  # show_vacancies(json_file, top_n=0)
+          "4. Удалить вакансию из собранных по его ID\n"  # delete_vacancy_by_id(json_file)
+          "5. Добавить вакансию в список")  # Vacancy.
     if Vacancy.all_added_vacancies:
-        print("6. Показать добавленную вакансию\n"
-              "7. Удалить добавленную вакансию")
+        print("6. Показать добавленную вакансию\n"  # print(vacancy)
+              "7. Удалить добавленную вакансию")  # delete_vacancy(self, json_file)
     if len(Vacancy.all_added_vacancies) > 1:
         print("8. Показать все добавленные вакансии\n")
     print("0. Выход")
-    user_move = input("Выберите действие: ")
-    return user_move
+    user_move = int(input("Выберите действие: "))
+    while user_move != 0:
+        if user_move == 1:
+            show_vacancies(json_file)
+            get_user_move(json_file)
+        elif user_move == 2:
+            pass
+        elif user_move == 3:
+            top_n = get_top_n()
+            show_vacancies(json_file, top_n)
+            get_user_move(json_file)
+        elif user_move == 4:
+            delete_vacancy_by_id(json_file)
+            get_user_move(json_file)
+        elif user_move == 5:
+            vacancy = add_vacancy()
+            vacancy.add_user_vacancy_to_json(json_file)
+            get_user_move(json_file)
+        # elif user_move == 6:
+        #     last_added_vac = Vacancy.all_added_vacancies[-1]
+        #     print(last_added_vac)
+        # elif user_move == 7:
+        #     last_added_vac = Vacancy.all_added_vacancies[-1]
+        #     Vacancy.delete_vacancy(last_added_vac, json_file)
+        else:
+            print("Не то число")
+            get_user_move(json_file)
+    # return user_move
 
 
 def get_platform():
@@ -40,6 +66,10 @@ def get_platform():
     if validated_platform == 1:
         return platforms[0]
     return platforms[1]
+
+
+def get_working_file(platform) -> str:
+    return platform.get_working_file
 
 
 def show_vacancies(json_file, top_n=0) -> None:
@@ -66,20 +96,6 @@ def show_vacancies(json_file, top_n=0) -> None:
             print_vacancies(vacancies)
 
 
-def get_salary(vacancy):
-    """
-    Функция для вывода на печать зарплаты при показе вакансий
-    :param vacancy: вакансия в dict формате
-    :return: зарпалата на печать
-    """
-    salary = vacancy["salary"]
-    if salary != "Не указана":
-        return (f'\tОт: {salary["from"]}\n'
-                f'\tДо: {salary["to"]}\n'
-                f'\tВалюта: {salary["currency"].upper()}')
-    return f'\t{salary}'
-
-
 def print_vacancies(vacancies):
     """
     Печать вакансий из необходимого списка с вакансиями
@@ -96,6 +112,20 @@ def print_vacancies(vacancies):
                         f'Описание: {vacancy["description"]}\n')
 
         print(vacancy_info)
+
+
+def get_salary(vacancy):
+    """
+    Функция для вывода на печать зарплаты при показе вакансий
+    :param vacancy: вакансия в dict формате
+    :return: зарпалата на печать
+    """
+    salary = vacancy["salary"]
+    if salary != "Не указана":
+        return (f'\tОт: {salary["from"]}\n'
+                f'\tДо: {salary["to"]}\n'
+                f'\tВалюта: {salary["currency"].upper()}')
+    return f'\t{salary}'
 
 
 def delete_vacancy_by_id(json_file) -> None:
@@ -137,8 +167,9 @@ def add_vacancy() -> Vacancy:
 def sort_by_salary():
     pass
 
+
 # функции валидации входных данных от пользователя
-def check_top_n():
+def get_top_n():
     """Функция для валидации введенной цифры."""
     validated_top_n = ''
 
@@ -184,7 +215,8 @@ def check_profession() -> str:
         if input_profession.isdigit():
             print("Наименование вакансии должно состоять из букв")
         elif not len(input_profession) >= 10:
-            print("Наименование вакансии должно состоять из минимум 10 символов.")
+            print(
+                "Наименование вакансии должно состоять из минимум 10 символов.")
         else:
             validated_profession = input_profession.strip()
             validate = True
@@ -220,7 +252,8 @@ def check_salary() -> dict:
             to_validate = True
 
     while not currency_validate:
-        input_currency = input("Введите валюту в формате RUB (только из трех букв): ").upper()
+        input_currency = input(
+            "Введите валюту в формате RUB (только из трех букв): ").upper()
         if not input_currency.isalpha():
             print("Валюта может состоять только из букв")
         elif len(input_currency) != 3:
@@ -243,7 +276,8 @@ def check_vacancy_url() -> str:
 
     validate = False
     while not validate:
-        input_url = input("Введите ссылка на вакансию (начало с https:// и окончание на .ru): ")
+        input_url = input(
+            "Введите ссылка на вакансию (начало с https:// и окончание на .ru): ")
         if not input_url.startswith('https://'):
             print("Ссылка должна начинаться с https://")
         elif not input_url.endswith('.ru'):

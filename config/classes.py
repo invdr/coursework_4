@@ -4,9 +4,6 @@ from abc import ABC, abstractmethod
 
 import requests
 
-HHJSONFILE = 'config/hh_vacancies.json'
-SJJSONFILE = 'config/sj_vacancies.json'
-
 
 class APIVacancy(ABC):
     """Абстрактный класс для работы с API сайтов с вакансиями."""
@@ -25,16 +22,23 @@ class APIVacancy(ABC):
 class Saver(ABC):
     """Абстрактный класс для сохранения вакансий в файл"""
 
+    @staticmethod
     @abstractmethod
-    def add_to_json(self, *args):
+    def add_vacancies(*args):
         pass
 
     @staticmethod
     def print_result(json_data):
         """Возвращает результат сбора вакансий."""
         if json_data:
-            return "Вакансии сохранены в файл"
-        return "Вакансии с таким запросом не найдены"
+            print_pos_result = (f'-------------------------\n'
+                                f'Вакансии сохранены в файл\n'
+                                f'-------------------------')
+            return print_pos_result
+        print_neg_result = (f'-------------------------\n'
+                            f'Вакансии с таким запросом не найдены\n'
+                            f'-------------------------')
+        return print_neg_result
 
 
 class JSONSaver(Saver):
@@ -42,7 +46,7 @@ class JSONSaver(Saver):
     __slots__ = ()
 
     @staticmethod
-    def add_to_json(json_file, new_vacancies: list) -> None:
+    def add_vacancies(json_file, new_vacancies: list) -> None:
         """Метод добавления найденных вакансий по запросу в JSON файл"""
         with open(json_file, 'r', encoding='utf-8') as f:
             json_data = json.load(f)
@@ -88,12 +92,11 @@ class Vacancy(JSONSaver):
         elif isinstance(salary, str):
             salary_split = salary.split()
             if len(salary_split) != 3:
-                raise "Зарплата ОТ, ДО и ВАЛЮТА должны быть разделены пробелами (всего два пробела)"
+                raise "Зарплата и валюта должны быть разделены пробелами (всего два пробела)"
             elif not int(salary_split[1]) >= int(salary_split[0]):
                 raise "Зарплата ДО должна быть больше или равна зарплате ОТ"
             elif len(salary_split[2]) != 3:
                 raise "Наименование валюты должно состоять из 3 букв"
-
         elif not vacancy_url.startswith("https://"):
             raise "Ссылка должна начинаться с https://"
         elif not vacancy_url.endswith(".ru"):
@@ -123,7 +126,7 @@ class Vacancy(JSONSaver):
                     "description": self.description,
                     }]
         # используем метод класса JSONSaver для сохранения вакансии в рабочий JSON файл
-        self.add_to_json(json_file, vacancy)
+        self.add_vacancies(json_file, vacancy)
         print("Вакансия сохранены в файл")
 
     def delete_vacancy(self, json_file) -> None:
@@ -145,11 +148,11 @@ class Vacancy(JSONSaver):
                     vacancies_list.pop(index)
                     break
             with open(json_file, 'w', encoding='utf-8') as outfile:
-                json.dump(vacancies_list, outfile, ensure_ascii=False, indent=2)
+                json.dump(vacancies_list, outfile, ensure_ascii=False,indent=2)
 
     @classmethod
     def show_vacancies(cls):
-        """Показывает последнюю добавленную вакансию"""
+        """Показывает все добавленные вакансии."""
         for vac in cls.all_added_vacancies:
             print(vac)
 
@@ -194,12 +197,20 @@ class Vacancy(JSONSaver):
 
 class HeadHunterAPI(APIVacancy, JSONSaver):
     """Класс для работы с вакансиями сайта HH.ru посредством API."""
-    __slots__ = ()
+    __slots__ = '__hh_file'
 
-    def get_vacancies(self, query: str, json_file=HHJSONFILE) -> None:
+    def __init__(self):
+        self.__hh_file = 'config/hh_vacancies.json'
+
+    @property
+    def get_working_file(self):
+        return self.__hh_file
+
+    def get_vacancies(self, query: str) -> None:
         """По запросу пользователя добавляем найденные вакансии в JSON файл по шаблону."""
         # проверяем наличие необходимо JSON файла-шаблона
-        self.check_file(json_file)
+        working_file = self.__hh_file
+        self.check_file(working_file)
 
         # проходим в цикле по страницам результата запроса (100 записей на 1 страницу)
         for page in range(0, 1):
@@ -227,11 +238,11 @@ class HeadHunterAPI(APIVacancy, JSONSaver):
                 formatted_vacancies.append(vacancy_info)
 
             # вызываем статический метод класса для записи вакансий в файл
-            self.add_to_json(json_file, formatted_vacancies)
+            self.add_vacancies(working_file, formatted_vacancies)
 
     @staticmethod
     def __get_page(query: str, page: int) -> str:
-        """Функция получает JSON данные по вакансиям с необходимой страницы для дальнейшей работы."""
+        """Функция получает данные по вакансиям с необходимой страницы для дальнейшей работы."""
         params = {
             'text': f'NAME:{query}',
             'page': page,
@@ -268,14 +279,22 @@ class HeadHunterAPI(APIVacancy, JSONSaver):
 
 class SuperJobAPI(APIVacancy, JSONSaver):
     """Класс для работы с вакансиями сайта superjob.ru посредством API."""
-    __slots__ = ()
+    __slots__ = '__sj_file'
     __secret_key = ('v3.h.4094091.ae6fa90f20bc0d67b04ec1edf5dd02e4ab9c64c5'
                     '.d238f3c7e7e5fe32997d9b4d0a15ff6a4d699b75')
 
-    def get_vacancies(self, query: str, json_file=SJJSONFILE) -> None:
+    def __init__(self):
+        self.__sj_file = 'config/sj_vacancies.json'
+
+    @property
+    def get_working_file(self):
+        return self.__sj_file
+
+    def get_vacancies(self, query: str) -> None:
         """По запросу пользователя добавляем найденные вакансии в JSON файл по шаблону."""
         # проверяем наличие необходимо JSON файла-шаблона
-        self.check_file(json_file)
+        working_file = self.__sj_file
+        self.check_file(working_file)
 
         # проходим в цикле по страницам результата запроса (100 записей на 1
         # страницу)
@@ -300,7 +319,7 @@ class SuperJobAPI(APIVacancy, JSONSaver):
 
             # открываем файл для добавления вакансий с каждой страницы запроса
             # объекту "json_data"
-            self.add_to_json(json_file, formatted_vacancies)
+            self.add_vacancies(working_file, formatted_vacancies)
 
     @staticmethod
     def __get_page(query: str, page: int) -> str:
