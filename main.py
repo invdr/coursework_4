@@ -1,5 +1,13 @@
+from config.classes import *
+from config.functions import *
+
+
 def main():
-    pass
+    working_platform = get_platform()  #
+    working_file = working_platform.get_working_file
+    user_query = input('Введите поисковый запрос: ')
+    working_platform.get_vacancies(user_query)
+    user_interaction(working_file)
 
 
 if __name__ == '__main__':
