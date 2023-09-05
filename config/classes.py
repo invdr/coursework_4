@@ -53,7 +53,7 @@ class JSONSaver(Saver):
 
     @staticmethod
     def add_vacancies(json_file, new_vacancies: list) -> None:
-        """Метод добавления найденных вакансий по запросу в JSON файл"""
+        """Метод добавления вакансий в JSON файл"""
         with open(json_file, 'r', encoding='utf-8') as f:
             json_data = json.load(f)
             json_data.extend(new_vacancies)
@@ -62,7 +62,6 @@ class JSONSaver(Saver):
             # страницы в список "items"
             with open(json_file, 'w', encoding='utf-8') as outfile:
                 json.dump(json_data, outfile, ensure_ascii=False, indent=2)
-            print(Saver.print_result(json_data))
 
 
 class Vacancy(JSONSaver):
@@ -70,15 +69,15 @@ class Vacancy(JSONSaver):
     __slots__ = ('vacancy_id', 'profession', 'salary', 'vacancy_url', 'description')
     all_added_vacancies = []
 
-    def __init__(self, vacancy_id, profession, salary, vacancy_url, description):
+    def __init__(self, vacancy_id: int, profession: str, salary: dict | str, vacancy_url: str,
+                 description: str):
         super().__init__()
         if self.__check_values(vacancy_id, profession, salary, vacancy_url, description):
             self.vacancy_id = vacancy_id
             self.profession = profession
-            self.salary = salary
+            self.salary = self.__get_user_salary(salary)
             self.vacancy_url = vacancy_url
             self.description = description
-
         self.all_added_vacancies.append(self)
 
     @classmethod
@@ -112,21 +111,23 @@ class Vacancy(JSONSaver):
         return True
 
     @staticmethod
-    def __get_user_salary(salary: str) -> dict:
+    def __get_user_salary(salary: str | dict) -> dict:
         """Получает зарплату в виде "от до валюта" и возвращает в виде словаря."""
-        salary_list = salary.split()
-        salary_dict = {
-            "from": salary_list[0],
-            "to": salary_list[1],
-            "currency": salary_list[2].upper(),
-        }
-        return salary_dict
+        if isinstance(salary, str):
+            salary_list = salary.split()
+            salary_dict = {
+                "from": salary_list[0],
+                "to": salary_list[1],
+                "currency": salary_list[2].upper(),
+            }
+            return salary_dict
+        return salary
 
     def add_user_vacancy_to_json(self, json_file):
         """Метод для добавления пользовательской вакансии в JSON файл."""
         vacancy = [{"id": self.vacancy_id,
                     "profession": self.profession,
-                    "salary": self.salary if isinstance(self.salary, dict) else self.__get_user_salary(self.salary),
+                    "salary": self.salary,
                     "vacancy_url": self.vacancy_url,
                     "description": self.description,
                     }]
@@ -141,7 +142,7 @@ class Vacancy(JSONSaver):
             with open(json_file, 'w', encoding='utf-8') as outfile:
                 json.dump(vacancies_list, outfile, ensure_ascii=False, indent=2)
         self.all_added_vacancies.pop()  # удаляем из списка экземпляров
-        print("---------- Вакансия и экземпляр удалены ----------\n")
+        print("---------- Вакансия и экземпляр из списка удалены ----------\n")
 
     @classmethod
     def show_vacancies(cls):
@@ -158,42 +159,33 @@ class Vacancy(JSONSaver):
                             f'Описание: {vac.description}')
             print(vacancy_info)
 
-    # def __gt__(self, other):
-    #     """Сравнивает экземпляры класса по атрибуту salary"""
-    #     return int(self.salary) > int(other.salary)
-    #
-    # def __ge__(self, other):
-    #     """Сравнивает экземпляры класса по атрибуту subscriber_count."""
-    #     return int(self.salary) >= int(other.salary)
-    #
-    # def __lt__(self, other):
-    #     """Сравнивает экземпляры класса по атрибуту subscriber_count."""
-    #     return int(self.salary) < int(other.salary)
-    #
-    # def __le__(self, other):
-    #     """Сравнивает экземпляры класса по атрибуту subscriber_count."""
-    #     return int(self.salary) <= int(other.salary)
-    #
-    # def __eq__(self, other):
-    #     """Сравнивает экземпляры класса по атрибуту subscriber_count."""
-    #     return int(self.salary) == int(other.salary)
+    def __gt__(self, other):
+        """Сравнивает экземпляры класса по атрибуту salary"""
+        return self.salary["from"] > other.salary["from"]
+
+    def __ge__(self, other):
+        """Сравнивает экземпляры класса по атрибуту subscriber_count."""
+        return self.salary["from"] >= other.salary["from"]
+
+    def __eq__(self, other):
+        """Сравнивает экземпляры класса по атрибуту subscriber_count."""
+        return self.salary["from"] == other.salary["from"]
 
     def __str__(self):
-        salary = self.__get_user_salary(self.salary)
         vacancy_info = ('------------------\n'
                         f'ID вакансии: {self.vacancy_id}\n'
                         f'Наименование вакансии: {self.profession}\n'
                         f'Зарплата: \n'
-                        f'\tОт: {salary["from"]}\n'
-                        f'\tДо: {salary["to"]}\n'
-                        f'\tВалюта: {salary["currency"]}\n'
+                        f'\tОт: {self.salary["from"]}\n'
+                        f'\tДо: {self.salary["to"]}\n'
+                        f'\tВалюта: {self.salary["currency"]}\n'
                         f'Ссылка: {self.vacancy_url}\n'
                         f'Описание: {self.description}')
         return vacancy_info
 
     def __repr__(self):
         return (f'{self.__class__.__name__}({self.vacancy_id=}, {self.profession=}, '
-                f'{self.salary=}, {self.vacancy_url=}, {self.description=})')
+                f'\'{self.salary["from"]} {self.salary["to"]} {self.salary["currency"]}\', {self.vacancy_url=}, {self.description=})')
 
 
 class HeadHunterAPI(APIVacancy, JSONSaver):
@@ -206,7 +198,7 @@ class HeadHunterAPI(APIVacancy, JSONSaver):
         working_file = self.get_working_file
 
         # проходим в цикле по страницам результата запроса (100 записей на 1 страницу)
-        for page in range(0, 1):
+        for page in range(0, 20):
             new_data = json.loads(self.__get_page(query, page))
 
             # проверка на 2000 записей при 100 записях на 1 странице
@@ -232,6 +224,7 @@ class HeadHunterAPI(APIVacancy, JSONSaver):
 
             # вызываем статический метод класса для записи вакансий в файл
             self.add_vacancies(working_file, formatted_vacancies)
+        print(Saver.print_result(working_file))
 
     @staticmethod
     def __get_page(query: str, page: int) -> str:
@@ -239,7 +232,7 @@ class HeadHunterAPI(APIVacancy, JSONSaver):
         params = {
             'text': f'NAME:{query}',
             'page': page,
-            'per_page': 10,
+            'per_page': 100,
         }
 
         req = requests.get('https://api.hh.ru/vacancies', params)
@@ -287,7 +280,7 @@ class SuperJobAPI(APIVacancy, JSONSaver):
 
         # проходим в цикле по страницам результата запроса (100 записей на 1
         # страницу)
-        for page in range(0, 1):
+        for page in range(0, 5):
             new_data = json.loads(self.__get_page(query, page))
 
             # список для форматированных вакансий
@@ -306,6 +299,7 @@ class SuperJobAPI(APIVacancy, JSONSaver):
             # открываем файл для добавления вакансий с каждой страницы запроса
             # объекту "json_data"
             self.add_vacancies(working_file, formatted_vacancies)
+        print(Saver.print_result(working_file))
 
     @staticmethod
     def __get_page(query: str, page: int) -> str:
@@ -314,7 +308,7 @@ class SuperJobAPI(APIVacancy, JSONSaver):
                    'X-Api-App-Id': SuperJobAPI.secret_key, }
         params = {'keyword': query,
                   'page': page,
-                  'count': 10}
+                  'count': 100}
 
         req = requests.get('https://api.superjob.ru/2.0/vacancies/',
                            headers=headers, params=params)
