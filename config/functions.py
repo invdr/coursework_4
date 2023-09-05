@@ -166,7 +166,7 @@ def show_vacancy_by_id(json_file) -> None:
                     validate_id = True
                     break
             else:
-                print("Такого индекса нет в вакансиях")
+                print("Такого ID нет в вакансиях")
 
 
 def delete_vacancy_by_id(json_file) -> None:
